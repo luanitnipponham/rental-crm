@@ -1,5 +1,5 @@
 // Basic Service Worker for Rental CRM PWA
-const CACHE_NAME = 'rental-crm-v1';
+const CACHE_NAME = 'rental-crm-v2';
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
