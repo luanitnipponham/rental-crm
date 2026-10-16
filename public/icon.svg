@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3b82f6"/>
+      <stop offset="100%" stop-color="#1d4ed8"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="128" fill="url(#grad)"/>
+  <!-- Modern Building Silhouette -->
+  <path d="M128 384V200l96-64v248H128z" fill="#ffffff" fill-opacity="0.85"/>
+  <path d="M224 136l128-48v296H224V136z" fill="#ffffff"/>
+  <path d="M352 232l48-16v168h-48V232z" fill="#ffffff" fill-opacity="0.7"/>
+  <!-- Windows -->
+  <rect x="156" y="232" width="24" height="24" rx="4" fill="#1e40af"/>
+  <rect x="156" y="280" width="24" height="24" rx="4" fill="#1e40af"/>
+  <rect x="156" y="328" width="24" height="24" rx="4" fill="#1e40af"/>
+  
+  <rect x="256" y="152" width="28" height="28" rx="4" fill="#1e40af"/>
+  <rect x="300" y="152" width="28" height="28" rx="4" fill="#1e40af"/>
+  <rect x="256" y="208" width="28" height="28" rx="4" fill="#1e40af"/>
+  <rect x="300" y="208" width="28" height="28" rx="4" fill="#1e40af"/>
+  <rect x="256" y="264" width="28" height="28" rx="4" fill="#1e40af"/>
+  <rect x="300" y="264" width="28" height="28" rx="4" fill="#1e40af"/>
+  <rect x="256" y="320" width="28" height="28" rx="4" fill="#1e40af"/>
+  <rect x="300" y="320" width="28" height="28" rx="4" fill="#1e40af"/>
+</svg>

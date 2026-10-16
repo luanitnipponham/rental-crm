@@ -1,0 +1,61 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum ApartmentStatus {
+  AVAILABLE
+  UPCOMING_SOON
+  DEPOSITED
+  RENTED
+}
+
+enum FurnitureStatus {
+  EMPTY
+  BASIC
+  FULL
+}
+
+model Project {
+  id          String      @id @default(uuid())
+  name        String
+  district    String
+  address     String?
+  apartments  Apartment[]
+  createdAt   DateTime    @default(now())
+}
+
+model Apartment {
+  id              String          @id @default(uuid())
+  projectId       String
+  project         Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  
+  unitNumber      String
+  bedrooms        Int             @default(1)
+  bathrooms       Int             @default(1)
+  areaSqm         Float?
+  priceVnd        Int
+  depositMonths   Int             @default(1)
+  furniture       FurnitureStatus @default(FULL)
+  allowPet        Boolean         @default(false)
+  status          ApartmentStatus @default(AVAILABLE)
+  availableDate   DateTime?
+  
+  images          String[]
+  videoUrl        String?
+  doorPasscode    String?
+  
+  ownerName       String
+  ownerPhone      String
+  commissionDeal  String?
+  internalNotes   String?
+  
+  leaseEndDate    DateTime?
+
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+}
