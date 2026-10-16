@@ -169,6 +169,13 @@ export default function RentalDashboard({
     });
   }, [apartments, filters]);
 
+  // Handle direct apartment update from card (e.g. quick YouTube video edit)
+  const handleUpdateApartment = (updated: Apartment) => {
+    setApartments((prev) =>
+      prev.map((item) => (item.id === updated.id ? updated : item))
+    );
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
       {/* Navigation */}
@@ -250,6 +257,7 @@ export default function RentalDashboard({
                 onEdit={handleEdit}
                 onDelete={handleDelete}
                 onShowToast={showToast}
+                onUpdateApartment={handleUpdateApartment}
               />
             ))}
           </div>
