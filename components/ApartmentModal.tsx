@@ -1,7 +1,21 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { X, Building2, KeyRound, User, Home, Shield, Image as ImageIcon, Loader2 } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import {
+  X,
+  Building2,
+  KeyRound,
+  User,
+  Home,
+  Shield,
+  Image as ImageIcon,
+  Loader2,
+  Camera,
+  Upload,
+  Trash2,
+  Plus,
+  Link as LinkIcon,
+} from 'lucide-react';
 import { Apartment, Project, ApartmentStatus, FurnitureStatus } from '@/lib/types';
 
 interface ApartmentModalProps {
@@ -13,6 +27,54 @@ interface ApartmentModalProps {
   onShowToast: (message: string) => void;
 }
 
+// Client-side image compression to optimize storage & mobile upload speed
+const compressImageFile = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    if (!file.type.startsWith('image/')) {
+      return reject(new Error('Vui lòng chỉ chọn file hình ảnh'));
+    }
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (e) => {
+      const img = new Image();
+      img.src = e.target?.result as string;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX_WIDTH = 1200;
+        const MAX_HEIGHT = 1200;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > MAX_WIDTH) {
+            height = Math.round((height * MAX_WIDTH) / width);
+            width = MAX_WIDTH;
+          }
+        } else {
+          if (height > MAX_HEIGHT) {
+            width = Math.round((width * MAX_HEIGHT) / height);
+            height = MAX_HEIGHT;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          resolve(img.src);
+          return;
+        }
+        ctx.drawImage(img, 0, 0, width, height);
+        // Compress as JPEG 0.78 for great quality & tiny file size (~80KB)
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.78);
+        resolve(dataUrl);
+      };
+      img.onerror = () => reject(new Error('Lỗi tải hình ảnh'));
+    };
+    reader.onerror = () => reject(new Error('Lỗi đọc file từ thiết bị'));
+  });
+};
+
 export default function ApartmentModal({
   isOpen,
   onClose,
@@ -22,6 +84,7 @@ export default function ApartmentModal({
   onShowToast,
 }: ApartmentModalProps) {
   const isEditing = Boolean(apartmentToEdit);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   // Form State
   const [projectId, setProjectId] = useState('');
@@ -47,7 +110,11 @@ export default function ApartmentModal({
   const [internalNotes, setInternalNotes] = useState('');
   const [leaseEndDate, setLeaseEndDate] = useState('');
 
-  const [imagesText, setImagesText] = useState('');
+  // Image list state
+  const [imageList, setImageList] = useState<string[]>([]);
+  const [isProcessingPhotos, setIsProcessingPhotos] = useState(false);
+  const [showManualUrl, setShowManualUrl] = useState(false);
+  const [manualUrlInput, setManualUrlInput] = useState('');
   const [videoUrl, setVideoUrl] = useState('');
 
   const [loading, setLoading] = useState(false);
@@ -82,7 +149,7 @@ export default function ApartmentModal({
           ? new Date(apartmentToEdit.leaseEndDate).toISOString().split('T')[0]
           : ''
       );
-      setImagesText(apartmentToEdit.images ? apartmentToEdit.images.join('\n') : '');
+      setImageList(apartmentToEdit.images || []);
       setVideoUrl(apartmentToEdit.videoUrl || '');
     } else {
       // Default reset
@@ -106,13 +173,53 @@ export default function ApartmentModal({
       setCommissionDeal('1 tháng (HĐ 1 năm)');
       setInternalNotes('');
       setLeaseEndDate('');
-      setImagesText('');
+      setImageList([]);
       setVideoUrl('');
     }
+    setShowManualUrl(false);
+    setManualUrlInput('');
     setError('');
   }, [apartmentToEdit, isOpen, projects]);
 
   if (!isOpen) return null;
+
+  // Handle mobile / desktop photo file selection
+  const handlePhotoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    setIsProcessingPhotos(true);
+    setError('');
+
+    try {
+      const fileArray = Array.from(files);
+      const compressedPromises = fileArray.map((file) => compressImageFile(file));
+      const compressedResults = await Promise.all(compressedPromises);
+
+      setImageList((prev) => [...prev, ...compressedResults]);
+      onShowToast(`Đã thêm ${compressedResults.length} ảnh từ thiết bị!`);
+    } catch (err: any) {
+      setError(err.message || 'Lỗi khi xử lý hình ảnh');
+    } finally {
+      setIsProcessingPhotos(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  // Remove photo from list
+  const handleRemovePhoto = (indexToRemove: number) => {
+    setImageList((prev) => prev.filter((_, idx) => idx !== indexToRemove));
+  };
+
+  // Add manual URL
+  const handleAddManualUrl = () => {
+    if (!manualUrlInput.trim()) return;
+    const url = manualUrlInput.trim();
+    setImageList((prev) => [...prev, url]);
+    setManualUrlInput('');
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -158,10 +265,7 @@ export default function ApartmentModal({
         commissionDeal,
         internalNotes,
         leaseEndDate: leaseEndDate ? new Date(leaseEndDate).toISOString() : null,
-        images: imagesText
-          .split('\n')
-          .map((s) => s.trim())
-          .filter(Boolean),
+        images: imageList,
         videoUrl,
       };
 
@@ -191,10 +295,10 @@ export default function ApartmentModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto">
-      <div className="relative w-full max-w-2xl bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden my-8">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto">
+      <div className="relative w-full max-w-2xl bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden my-4 sm:my-8">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-slate-50/70">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200 bg-slate-50/70">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center shadow-xs">
               <Building2 className="w-4 h-4" />
@@ -218,13 +322,13 @@ export default function ApartmentModal({
 
         {/* Error alert */}
         {error && (
-          <div className="mx-6 mt-4 p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 font-medium">
+          <div className="mx-5 mt-4 p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 font-medium">
             {error}
           </div>
         )}
 
         {/* Form Body */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-6 max-h-[75vh] overflow-y-auto">
+        <form onSubmit={handleSubmit} className="p-5 sm:p-6 space-y-6 max-h-[75vh] overflow-y-auto">
           {/* Section 1: Dự án & Thông số BĐS */}
           <div className="space-y-4">
             <div className="flex items-center gap-2 pb-2 border-b border-slate-100 text-sm font-bold text-slate-800">
@@ -515,23 +619,121 @@ export default function ApartmentModal({
             </div>
           </div>
 
-          {/* Section 4: Link Hình Ảnh */}
-          <div className="space-y-3">
-            <div className="flex items-center gap-2 pb-2 border-b border-slate-100 text-sm font-bold text-slate-800">
-              <ImageIcon className="w-4 h-4 text-purple-600" />
-              <span>4. Link Hình Ảnh & Video</span>
+          {/* Section 4: Hình Ảnh Trực Tiếp & Link Video */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100 text-sm font-bold text-slate-800">
+              <div className="flex items-center gap-2">
+                <ImageIcon className="w-4 h-4 text-purple-600" />
+                <span>4. Hình Ảnh Thực Tế & Video</span>
+              </div>
+              <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-purple-50 text-purple-700">
+                {imageList.length} hình ảnh
+              </span>
             </div>
 
+            {/* Nút bấm chọn ảnh từ điện thoại / thư viện */}
+            <div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                id="photo-upload-picker"
+                accept="image/*"
+                multiple
+                className="hidden"
+                onChange={handlePhotoSelect}
+              />
+
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isProcessingPhotos}
+                  className="flex-1 min-w-[200px] inline-flex items-center justify-center gap-2 py-3 px-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold text-xs sm:text-sm rounded-xl shadow-md shadow-blue-500/20 transition-all cursor-pointer transform active:scale-98 disabled:opacity-50"
+                >
+                  {isProcessingPhotos ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Đang nén và tải ảnh lên...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Camera className="w-4 h-4" />
+                      <span>Tải Ảnh Từ Thư Viện / Chụp Ảnh</span>
+                    </>
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setShowManualUrl(!showManualUrl)}
+                  className="px-3.5 py-2.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors inline-flex items-center gap-1.5 cursor-pointer"
+                >
+                  <LinkIcon className="w-3.5 h-3.5" />
+                  <span>{showManualUrl ? 'Ẩn ô dán link' : 'Dán link URL'}</span>
+                </button>
+              </div>
+
+              {/* Ô dán link thủ công nếu muốn */}
+              {showManualUrl && (
+                <div className="mt-2.5 flex gap-2">
+                  <input
+                    type="url"
+                    placeholder="Dán link ảnh https://... vào đây"
+                    value={manualUrlInput}
+                    onChange={(e) => setManualUrlInput(e.target.value)}
+                    className="flex-1 px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddManualUrl}
+                    className="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white text-xs font-semibold rounded-xl cursor-pointer"
+                  >
+                    Thêm
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Danh sách ảnh Preview đã chọn */}
+            {imageList.length > 0 && (
+              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2.5 p-3 bg-slate-50 rounded-xl border border-slate-200/80">
+                {imageList.map((imgUrl, idx) => (
+                  <div
+                    key={idx}
+                    className="relative aspect-square rounded-lg overflow-hidden bg-slate-200 border border-slate-300/80 group shadow-2xs"
+                  >
+                    <img
+                      src={imgUrl}
+                      alt={`Căn hộ photo ${idx + 1}`}
+                      className="w-full h-full object-cover"
+                    />
+                    <span className="absolute bottom-1 left-1 bg-black/60 text-white text-[10px] px-1.5 py-0.2 rounded font-semibold backdrop-blur-2xs">
+                      #{idx + 1}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleRemovePhoto(idx)}
+                      className="absolute top-1 right-1 p-1 bg-red-600/90 hover:bg-red-700 text-white rounded-full shadow-xs transition-transform transform hover:scale-110 cursor-pointer"
+                      title="Xóa ảnh này"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Video link */}
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Link hình ảnh (mỗi dòng 1 link URL)
+                Link Video xem nhà thực tế (Youtube, Tiktok, Drive...)
               </label>
-              <textarea
-                rows={3}
-                placeholder="https://images.unsplash.com/...&#10;https://images.unsplash.com/..."
-                value={imagesText}
-                onChange={(e) => setImagesText(e.target.value)}
-                className="w-full px-3 py-2 text-xs font-mono bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20"
+              <input
+                type="url"
+                placeholder="https://youtube.com/watch?v=..."
+                value={videoUrl}
+                onChange={(e) => setVideoUrl(e.target.value)}
+                className="w-full px-3 py-2 text-xs bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20"
               />
             </div>
           </div>
@@ -547,7 +749,7 @@ export default function ApartmentModal({
             </button>
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || isProcessingPhotos}
               className="inline-flex items-center gap-2 px-5 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 rounded-xl shadow-md shadow-blue-500/20 transition-all cursor-pointer disabled:opacity-50"
             >
               {loading && <Loader2 className="w-4 h-4 animate-spin" />}
