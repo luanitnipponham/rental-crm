@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import Navbar from '@/components/Navbar';
 import StatsOverview from '@/components/StatsOverview';
 import FilterBar from '@/components/FilterBar';
@@ -20,6 +21,7 @@ export default function RentalDashboard({
   initialApartments,
   initialProjects,
 }: RentalDashboardProps) {
+  const router = useRouter();
   const [apartments, setApartments] = useState<Apartment[]>(initialApartments);
   const [projects, setProjects] = useState<Project[]>(initialProjects);
 
@@ -65,6 +67,50 @@ export default function RentalDashboard({
     } catch (err) {
       console.error('Failed to refresh data', err);
     }
+  };
+
+  // Tự động làm mới khi quay lại ứng dụng trên điện thoại (đổi app, mở khóa màn hình)
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        refreshData();
+      }
+    };
+
+    window.addEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('focus', handleVisibility);
+
+    // Tự động đồng bộ ngầm định kỳ mỗi 15 giây nếu đang mở app
+    const interval = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        refreshData();
+      }
+    }, 15000);
+
+    return () => {
+      window.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('focus', handleVisibility);
+      clearInterval(interval);
+    };
+  }, []);
+
+  // Cập nhật ngay lập tức vào state giao diện (0ms delay) khi lưu thành công từ Modal
+  const handleSaveApartment = (savedApartment?: Apartment) => {
+    if (savedApartment) {
+      setApartments((prev) => {
+        const index = prev.findIndex((a) => a.id === savedApartment.id);
+        if (index >= 0) {
+          const updated = [...prev];
+          updated[index] = savedApartment;
+          return updated;
+        } else {
+          return [savedApartment, ...prev];
+        }
+      });
+    }
+    // Đồng thời gọi API làm mới và refresh server
+    refreshData();
+    router.refresh();
   };
 
   // Delete handler
@@ -175,6 +221,7 @@ export default function RentalDashboard({
     setApartments((prev) =>
       prev.map((item) => (item.id === updated.id ? updated : item))
     );
+    router.refresh();
   };
 
   return (
@@ -286,7 +333,7 @@ export default function RentalDashboard({
           setIsApartmentModalOpen(false);
           setApartmentToEdit(null);
         }}
-        onSave={refreshData}
+        onSave={handleSaveApartment}
         apartmentToEdit={apartmentToEdit}
         projects={projects}
         onShowToast={showToast}

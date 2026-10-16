@@ -23,7 +23,7 @@ import { Apartment, Project, ApartmentStatus, FurnitureStatus } from '@/lib/type
 interface ApartmentModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: () => void;
+  onSave: (savedApartment?: Apartment) => void;
   apartmentToEdit?: Apartment | null;
   projects: Project[];
   onShowToast: (message: string) => void;
@@ -268,7 +268,7 @@ export default function ApartmentModal({
         internalNotes,
         leaseEndDate: leaseEndDate ? new Date(leaseEndDate).toISOString() : null,
         images: imageList,
-        videoUrl,
+        videoUrl: videoUrl.trim() || null,
       };
 
       const url = isEditing && apartmentToEdit ? `/api/apartments/${apartmentToEdit.id}` : '/api/apartments';
@@ -286,9 +286,9 @@ export default function ApartmentModal({
         throw new Error(data.error || 'Có lỗi xảy ra');
       }
 
-      onShowToast(isEditing ? 'Đã cập nhật căn hộ thành công!' : 'Đã thêm căn hộ mới vào rổ hàng!');
-      onSave();
+      onSave(data);
       onClose();
+      onShowToast(isEditing ? 'Đã cập nhật căn hộ thành công!' : 'Đã thêm căn hộ mới vào rổ hàng!');
     } catch (err: any) {
       setError(err.message || 'Không thể lưu căn hộ');
     } finally {
