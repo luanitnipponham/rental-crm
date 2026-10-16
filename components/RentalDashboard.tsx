@@ -51,9 +51,10 @@ export default function RentalDashboard({
   // Refresh data from API
   const refreshData = async () => {
     try {
+      const timestamp = Date.now();
       const [aptRes, projRes] = await Promise.all([
-        fetch('/api/apartments'),
-        fetch('/api/projects'),
+        fetch(`/api/apartments?t=${timestamp}`, { cache: 'no-store' }),
+        fetch(`/api/projects?t=${timestamp}`, { cache: 'no-store' }),
       ]);
       if (aptRes.ok && projRes.ok) {
         const apts = await aptRes.json();

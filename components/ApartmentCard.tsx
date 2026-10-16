@@ -173,16 +173,23 @@ export default function ApartmentCard({
   };
 
   const images = apartment.images && apartment.images.length > 0 ? apartment.images : [];
+  // Tự động dùng ảnh thumbnail từ YouTube nếu căn hộ chưa tải ảnh lên
+  const displayImages =
+    images.length > 0
+      ? images
+      : youtubeId
+      ? [`https://img.youtube.com/vi/${youtubeId}/hqdefault.jpg`]
+      : [];
 
   return (
     <>
       <div className="bg-white rounded-2xl border border-slate-200/90 shadow-xs hover:shadow-md transition-all duration-200 overflow-hidden flex flex-col justify-between group">
         <div>
           {/* Image Preview / Banner */}
-          {images.length > 0 && (
+          {displayImages.length > 0 && (
             <div className="relative aspect-[16/9] w-full bg-slate-100 overflow-hidden">
               <img
-                src={images[activeImgIndex]}
+                src={displayImages[activeImgIndex] || displayImages[0]}
                 alt={apartment.unitNumber}
                 className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-102"
                 loading="lazy"
@@ -205,7 +212,7 @@ export default function ApartmentCard({
                   title="Nhấn để xem video trực tiếp trên màn hình"
                 >
                   <Play className="w-3 h-3 fill-current" />
-                  <span>Video</span>
+                  <span>Xem Video</span>
                 </button>
               )}
 
@@ -215,9 +222,9 @@ export default function ApartmentCard({
               </div>
 
               {/* Multi-image indicators */}
-              {images.length > 1 && (
+              {displayImages.length > 1 && (
                 <div className="absolute bottom-3 left-3 flex gap-1">
-                  {images.map((_, i) => (
+                  {displayImages.map((_, i) => (
                     <button
                       key={i}
                       onClick={() => setActiveImgIndex(i)}
@@ -233,7 +240,7 @@ export default function ApartmentCard({
 
           <div className="p-4 sm:p-5">
             {/* Header if no images */}
-            {images.length === 0 && (
+            {displayImages.length === 0 && (
               <div className="flex items-center justify-between mb-3">
                 <span
                   className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold ${statusConfig.class}`}
@@ -349,79 +356,61 @@ export default function ApartmentCard({
 
             {/* VỊ TRÍ LINK YOUTUBE ĐỂ XEM TRÊN MÀN HÌNH (Theo đúng yêu cầu của người dùng) */}
             {hasVideo ? (
-              <div className="mb-3.5 bg-gradient-to-r from-red-50 to-rose-50/70 border border-red-200/90 rounded-xl p-2.5 transition-all flex items-center justify-between gap-2 shadow-2xs">
-                <div className="flex items-center gap-2 min-w-0">
-                  <div className="w-7 h-7 rounded-lg bg-red-600 text-white flex items-center justify-center shrink-0 shadow-xs">
-                    <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
+              <div className="mb-3.5 space-y-2">
+                {/* NÚT LỚN XEM TRỰC TIẾP TRÊN MÀN HÌNH */}
+                <button
+                  onClick={() => setIsVideoModalOpen(true)}
+                  className="w-full py-2.5 px-3 bg-red-600 hover:bg-red-700 active:bg-red-800 text-white rounded-xl font-bold text-xs flex items-center justify-center gap-2 shadow-sm shadow-red-600/20 transition-all cursor-pointer transform active:scale-98"
+                  title="Bấm vào xem video trực tiếp trên màn hình"
+                >
+                  <div className="w-5 h-5 rounded-full bg-white text-red-600 flex items-center justify-center shrink-0 shadow-2xs">
+                    <Play className="w-2.5 h-2.5 fill-current ml-0.5" />
+                  </div>
+                  <span>Xem Video YouTube Trên Màn Hình</span>
+                </button>
+
+                {/* THANH LINK CHI TIẾT & CÁC NÚT TIỆN ÍCH */}
+                <div className="flex items-center justify-between gap-1.5 px-2.5 py-1.5 bg-red-50/80 border border-red-200/80 rounded-lg text-xs">
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <svg className="w-3.5 h-3.5 fill-current text-red-600 shrink-0" viewBox="0 0 24 24">
                       <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
                     </svg>
-                  </div>
-                  <div className="min-w-0">
-                    <button
-                      onClick={() => setIsVideoModalOpen(true)}
-                      className="text-xs font-bold text-slate-900 hover:text-red-600 transition-colors flex items-center gap-1.5 cursor-pointer text-left truncate"
-                      title="Nhấn để xem video trực tiếp trên màn hình"
-                    >
-                      <span>Link YouTube</span>
-                      <span className="text-[10px] font-semibold text-red-600 bg-red-100 px-1.5 py-0.2 rounded">
-                        Xem ngay
-                      </span>
-                    </button>
                     <span
-                      className="text-[11px] text-slate-500 truncate block max-w-[130px] sm:max-w-[160px]"
+                      className="font-mono text-[11px] text-slate-600 truncate max-w-[150px] sm:max-w-[200px]"
                       title={apartment.videoUrl || ''}
                     >
                       {apartment.videoUrl}
                     </span>
                   </div>
-                </div>
 
-                <div className="flex items-center gap-1 shrink-0">
-                  {/* Nút Xem video trên màn hình */}
-                  <button
-                    onClick={() => setIsVideoModalOpen(true)}
-                    className="px-2.5 py-1.5 bg-red-600 hover:bg-red-700 active:bg-red-800 text-white text-xs font-semibold rounded-lg shadow-xs flex items-center gap-1 transition-all cursor-pointer transform active:scale-95"
-                    title="Xem video trực tiếp trên màn hình"
-                  >
-                    <Play className="w-3 h-3 fill-current" />
-                    <span>Xem</span>
-                  </button>
-
-                  {/* Nút Mở tab YouTube mới */}
-                  <a
-                    href={formatExternalUrl(apartment.videoUrl)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="p-1.5 text-slate-500 hover:text-red-600 hover:bg-red-100/70 rounded-lg transition-colors"
-                    title="Mở trên YouTube (tab mới)"
-                  >
-                    <ExternalLink className="w-3.5 h-3.5" />
-                  </a>
-
-                  {/* Nút Copy link */}
-                  <button
-                    onClick={handleCopyVideoUrl}
-                    className="p-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-200/70 rounded-lg transition-colors cursor-pointer"
-                    title="Copy link video"
-                  >
-                    {copiedVideo ? (
-                      <Check className="w-3.5 h-3.5 text-emerald-600" />
-                    ) : (
-                      <Copy className="w-3.5 h-3.5" />
-                    )}
-                  </button>
-
-                  {/* Nút Đổi link nhanh */}
-                  <button
-                    onClick={() => {
-                      setVideoInput(apartment.videoUrl || '');
-                      setIsQuickEditVideoOpen(true);
-                    }}
-                    className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
-                    title="Đổi hoặc xóa link video"
-                  >
-                    <Edit2 className="w-3 h-3" />
-                  </button>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <a
+                      href={formatExternalUrl(apartment.videoUrl)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="p-1 text-slate-500 hover:text-red-600 hover:bg-red-100 rounded transition-colors"
+                      title="Mở trên trang web/app YouTube"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" />
+                    </a>
+                    <button
+                      onClick={handleCopyVideoUrl}
+                      className="p-1 text-slate-500 hover:text-slate-800 hover:bg-slate-200/70 rounded transition-colors cursor-pointer"
+                      title="Copy link YouTube"
+                    >
+                      {copiedVideo ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                    </button>
+                    <button
+                      onClick={() => {
+                        setVideoInput(apartment.videoUrl || '');
+                        setIsQuickEditVideoOpen(true);
+                      }}
+                      className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors cursor-pointer"
+                      title="Đổi hoặc xóa link video"
+                    >
+                      <Edit2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
               </div>
             ) : (
@@ -432,11 +421,11 @@ export default function ApartmentCard({
                     setVideoInput('');
                     setIsQuickEditVideoOpen(true);
                   }}
-                  className="w-full py-2 px-3 border border-dashed border-slate-300 hover:border-red-400 hover:bg-red-50/40 text-slate-600 hover:text-red-600 rounded-xl text-xs font-medium transition-all flex items-center justify-center gap-1.5 cursor-pointer group"
+                  className="w-full py-2.5 px-3 border border-dashed border-red-300 hover:border-red-500 bg-red-50/20 hover:bg-red-50/60 text-slate-700 hover:text-red-600 rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-2 cursor-pointer group"
                   title="Thêm link video YouTube để xem trên màn hình"
                 >
                   <svg
-                    className="w-3.5 h-3.5 fill-current text-slate-400 group-hover:text-red-600 transition-colors"
+                    className="w-4 h-4 fill-current text-red-500 group-hover:scale-110 transition-transform"
                     viewBox="0 0 24 24"
                   >
                     <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
