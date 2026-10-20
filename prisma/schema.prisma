@@ -52,6 +52,7 @@ model Apartment {
   
   ownerName       String
   ownerPhone      String
+  internalZaloPhone String?
   commissionDeal  String?
   internalNotes   String?
   

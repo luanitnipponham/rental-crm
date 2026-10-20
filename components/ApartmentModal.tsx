@@ -108,6 +108,7 @@ export default function ApartmentModal({
   const [doorPasscode, setDoorPasscode] = useState('');
   const [ownerName, setOwnerName] = useState('');
   const [ownerPhone, setOwnerPhone] = useState('');
+  const [internalZaloPhone, setInternalZaloPhone] = useState('');
   const [commissionDeal, setCommissionDeal] = useState('');
   const [internalNotes, setInternalNotes] = useState('');
   const [leaseEndDate, setLeaseEndDate] = useState('');
@@ -144,6 +145,7 @@ export default function ApartmentModal({
       setDoorPasscode(apartmentToEdit.doorPasscode || '');
       setOwnerName(apartmentToEdit.ownerName);
       setOwnerPhone(apartmentToEdit.ownerPhone);
+      setInternalZaloPhone(apartmentToEdit.internalZaloPhone || '');
       setCommissionDeal(apartmentToEdit.commissionDeal || '');
       setInternalNotes(apartmentToEdit.internalNotes || '');
       setLeaseEndDate(
@@ -172,6 +174,8 @@ export default function ApartmentModal({
       setDoorPasscode('');
       setOwnerName('');
       setOwnerPhone('');
+      const savedDefaultZalo = typeof window !== 'undefined' ? localStorage.getItem('default_internal_zalo_phone') || '' : '';
+      setInternalZaloPhone(savedDefaultZalo);
       setCommissionDeal('1 tháng (HĐ 1 năm)');
       setInternalNotes('');
       setLeaseEndDate('');
@@ -264,6 +268,7 @@ export default function ApartmentModal({
         doorPasscode,
         ownerName,
         ownerPhone,
+        internalZaloPhone: internalZaloPhone.trim() || null,
         commissionDeal,
         internalNotes,
         leaseEndDate: leaseEndDate ? new Date(leaseEndDate).toISOString() : null,
@@ -284,6 +289,10 @@ export default function ApartmentModal({
 
       if (!res.ok) {
         throw new Error(data.error || 'Có lỗi xảy ra');
+      }
+
+      if (internalZaloPhone.trim() && typeof window !== 'undefined') {
+        localStorage.setItem('default_internal_zalo_phone', internalZaloPhone.trim());
       }
 
       onSave(data);
@@ -605,6 +614,32 @@ export default function ApartmentModal({
                   className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20"
                 />
               </div>
+            </div>
+
+            {/* SỐ ĐIỆN THOẠI ZALO NỘI BỘ (GỬI NHANH QUA ZALO) */}
+            <div className="p-3.5 bg-gradient-to-r from-blue-50/90 via-sky-50/70 to-indigo-50/90 border border-blue-200 rounded-xl space-y-1.5 shadow-2xs">
+              <div className="flex items-center justify-between">
+                <label className="flex items-center gap-1.5 text-xs font-bold text-blue-900">
+                  <svg className="w-4 h-4 fill-[#0068FF]" viewBox="0 0 48 48">
+                    <path d="M24 4C13 4 4 12.2 4 22.3c0 5.6 2.8 10.6 7.3 14L10 44l8.2-3.8c1.8.5 3.8.8 5.8.8 11 0 20-8.2 20-18.3S35 4 24 4z"/>
+                    <path fill="#fff" d="M14 17h11l-8.5 12.2c-.3.4-.3.9-.1 1.3.3.4.7.5 1.2.5H30v-4H20.4l8.3-11.8c.4-.5.4-1.2.1-1.7-.3-.5-.9-.8-1.5-.8H14v4z"/>
+                  </svg>
+                  <span>Số điện thoại hoặc Link Group Zalo nội bộ</span>
+                </label>
+                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-blue-100/80 text-blue-800">
+                  Nút &quot;Gửi Zalo group nội bộ&quot;
+                </span>
+              </div>
+              <input
+                type="text"
+                placeholder="VD: https://zalo.me/g/xxxxxx (link nhóm) hoặc 0908123456 (SĐT)"
+                value={internalZaloPhone}
+                onChange={(e) => setInternalZaloPhone(e.target.value)}
+                className="w-full px-3 py-2 text-sm bg-white border border-blue-200 rounded-xl font-mono focus:ring-2 focus:ring-blue-500/30 text-blue-950 placeholder:text-slate-400 font-medium"
+              />
+              <p className="text-[11px] text-blue-800/80 leading-relaxed">
+                👉 Khi bấm nút <span className="font-semibold text-blue-900">&quot;Gửi Zalo group nội bộ&quot;</span> trên thẻ căn hộ, hệ thống sẽ tự động copy tin chào khách và mở trực tiếp cuộc trò chuyện / nhóm Zalo này.
+              </p>
             </div>
 
             <div>

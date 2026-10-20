@@ -151,6 +151,7 @@ export default function RentalDashboard({
         const matchDistrict = apt.project?.district?.toLowerCase().includes(q);
         const matchOwner = apt.ownerName.toLowerCase().includes(q);
         const matchPhone = apt.ownerPhone.toLowerCase().includes(q);
+        const matchZalo = apt.internalZaloPhone?.toLowerCase().includes(q);
         const matchPass = apt.doorPasscode?.toLowerCase().includes(q);
         const matchNotes = apt.internalNotes?.toLowerCase().includes(q);
 
@@ -160,6 +161,7 @@ export default function RentalDashboard({
           !matchDistrict &&
           !matchOwner &&
           !matchPhone &&
+          !matchZalo &&
           !matchPass &&
           !matchNotes
         ) {

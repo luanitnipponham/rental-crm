@@ -15,6 +15,7 @@ import {
   X,
   Loader2,
   Film,
+  Send,
 } from 'lucide-react';
 import { Apartment } from '@/lib/types';
 import { extractYouTubeId, getYouTubeEmbedUrl, formatExternalUrl } from '@/lib/youtube';
@@ -35,10 +36,16 @@ export default function ApartmentCard({
   onUpdateApartment,
 }: ApartmentCardProps) {
   const [copiedZalo, setCopiedZalo] = useState(false);
+  const [copiedInternalZalo, setCopiedInternalZalo] = useState(false);
   const [copiedPass, setCopiedPass] = useState(false);
   const [copiedInternal, setCopiedInternal] = useState(false);
   const [copiedVideo, setCopiedVideo] = useState(false);
   const [activeImgIndex, setActiveImgIndex] = useState(0);
+
+  // Quick Zalo phone modal states
+  const [isQuickZaloPhoneModalOpen, setIsQuickZaloPhoneModalOpen] = useState(false);
+  const [quickZaloPhoneInput, setQuickZaloPhoneInput] = useState('');
+  const [isSavingZaloPhone, setIsSavingZaloPhone] = useState(false);
 
   // Video viewer & quick edit states
   const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
@@ -85,11 +92,11 @@ export default function ApartmentCard({
     FULL: 'Full nội thất',
   }[apartment.furniture];
 
-  // Copy template tin Zalo chào khách (KHÔNG CÓ pass, KHÔNG CÓ SĐT chủ, CÓ link video nếu có)
-  const handleCopyZalo = () => {
+  // Tạo template tin Zalo chào khách (kèm link video nếu có)
+  const getZaloShareText = () => {
     const videoSection = apartment.videoUrl ? `\n🎥 Video quay thực tế: ${apartment.videoUrl}` : '';
 
-    const text = `🏡 CHO THUÊ CĂN HỘ / NHÀ PHỐ ĐẸP
+    return `🏡 CHO THUÊ CĂN HỘ / NHÀ PHỐ ĐẸP
 📍 Dự án: ${apartment.project.name} (${apartment.project.district})
 🚪 Mã căn: ${apartment.unitNumber}
 📐 Diện tích: ${apartment.areaSqm ? `${apartment.areaSqm}m²` : 'Tiêu chuẩn'} • ${apartment.bedrooms} Phòng ngủ • ${apartment.bathrooms} WC
@@ -99,11 +106,95 @@ export default function ApartmentCard({
 ✨ Tình trạng: ${statusConfig.label} ${apartment.availableDate ? `(Trống từ ${new Date(apartment.availableDate).toLocaleDateString('vi-VN')})` : ''}${videoSection}
 
 👉 Quý khách quan tâm inbox em hỗ trợ xem nhà thực tế ngay nhé!`;
+  };
 
+  // Copy template tin Zalo chào khách (KHÔNG CÓ pass, KHÔNG CÓ SĐT chủ, CÓ link video nếu có)
+  const handleCopyZalo = () => {
+    const text = getZaloShareText();
     navigator.clipboard.writeText(text);
     setCopiedZalo(true);
     onShowToast('Đã copy tin nhắn Zalo chào khách (kèm link video nếu có)!');
     setTimeout(() => setCopiedZalo(false), 2500);
+  };
+
+  // Helper mở Zalo với Group hoặc số điện thoại & tự động copy tin
+  const executeOpenZalo = (target: string) => {
+    const trimmed = target.trim();
+    if (!trimmed) {
+      onShowToast('Chưa có thông tin số điện thoại hoặc link nhóm Zalo!');
+      return;
+    }
+
+    const text = getZaloShareText();
+    if (navigator?.clipboard?.writeText) {
+      navigator.clipboard.writeText(text);
+    }
+
+    setCopiedInternalZalo(true);
+    setTimeout(() => setCopiedInternalZalo(false), 2500);
+
+    let zaloUrl = '';
+    // Nếu là link nhóm Zalo (zalo.me/g/... hoặc http...)
+    if (trimmed.includes('zalo.me/g/') || trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+      zaloUrl = trimmed.startsWith('http') ? trimmed : `https://${trimmed}`;
+      onShowToast('Đã copy tin nhắn & đang mở nhóm Zalo! Bạn hãy bấm Dán (Paste) để gửi.');
+    } else {
+      // Nếu là số điện thoại
+      const cleanPhone = trimmed.replace(/\D/g, '');
+      if (!cleanPhone) {
+        onShowToast('Số điện thoại hoặc link Zalo không hợp lệ!');
+        return;
+      }
+      zaloUrl = `https://zalo.me/${cleanPhone}`;
+      onShowToast(`Đã copy tin nhắn & đang mở Zalo (${trimmed})! Bạn hãy bấm Dán (Paste) để gửi.`);
+    }
+
+    window.open(zaloUrl, '_blank');
+  };
+
+  // Bấm nút "Gửi Zalo group nội bộ"
+  const handleSendInternalZalo = () => {
+    const phoneOrLink = apartment.internalZaloPhone?.trim();
+    if (!phoneOrLink) {
+      setQuickZaloPhoneInput('');
+      setIsQuickZaloPhoneModalOpen(true);
+      return;
+    }
+
+    executeOpenZalo(phoneOrLink);
+  };
+
+  // Lưu nhanh số Zalo nội bộ từ modal inline
+  const handleSaveAndSendQuickZalo = async () => {
+    const clean = quickZaloPhoneInput.trim();
+    if (!clean) {
+      onShowToast('Vui lòng nhập số điện thoại Zalo');
+      return;
+    }
+
+    setIsSavingZaloPhone(true);
+    try {
+      const res = await fetch(`/api/apartments/${apartment.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ internalZaloPhone: clean }),
+      });
+
+      if (!res.ok) {
+        throw new Error('Lỗi cập nhật số Zalo');
+      }
+
+      const updated = await res.json();
+      if (onUpdateApartment) {
+        onUpdateApartment(updated);
+      }
+      setIsQuickZaloPhoneModalOpen(false);
+      executeOpenZalo(clean);
+    } catch (err: any) {
+      onShowToast(err.message || 'Lỗi khi lưu số Zalo');
+    } finally {
+      setIsSavingZaloPhone(false);
+    }
   };
 
   // Copy Passcode nhanh
@@ -122,6 +213,7 @@ export default function ApartmentCard({
 - Giá thuê: ${priceMillion} Tr/tháng (Cọc ${apartment.depositMonths}th)
 - Chủ nhà: ${apartment.ownerName} - ${apartment.ownerPhone}
 - Pass cửa: ${apartment.doorPasscode || 'N/A'}
+- Zalo nội bộ: ${apartment.internalZaloPhone || 'Chưa gắn'}
 - Hoa hồng: ${apartment.commissionDeal || 'Thỏa thuận'}
 - Video YouTube: ${apartment.videoUrl || 'Chưa có'}
 - Ghi chú: ${apartment.internalNotes || 'Không có'}`;
@@ -439,6 +531,37 @@ export default function ApartmentCard({
 
         {/* Footer Actions Toolbar */}
         <div className="px-4 pb-4 pt-1 sm:px-5 sm:pb-5 space-y-2">
+          {/* NÚT GỬI TIN ZALO GROUP NỘI BỘ */}
+          <button
+            onClick={handleSendInternalZalo}
+            className="w-full inline-flex items-center justify-between px-3.5 py-2.5 text-xs font-bold text-white bg-gradient-to-r from-blue-600 via-sky-600 to-blue-700 hover:from-blue-700 hover:to-sky-700 active:scale-[0.99] rounded-xl shadow-xs transition-all cursor-pointer group"
+            title={
+              apartment.internalZaloPhone
+                ? `Mở trực tiếp Zalo group / số điện thoại (${apartment.internalZaloPhone}) và copy sẵn tin nhắn`
+                : 'Bấm để thêm số hoặc link group Zalo nội bộ và gửi tin'
+            }
+          >
+            <div className="flex items-center gap-2">
+              {/* Icon Zalo đặc trưng */}
+              <div className="w-5 h-5 rounded-lg bg-white/20 flex items-center justify-center p-0.5 shrink-0 group-hover:scale-105 transition-transform">
+                <svg className="w-full h-full fill-white" viewBox="0 0 40 40">
+                  <path d="M11 14h18v3.5l-12 12h12V33H11v-3.5l12-12H11V14z" />
+                </svg>
+              </div>
+              <span>{copiedInternalZalo ? 'Đã copy tin & mở Zalo!' : 'Gửi Zalo group nội bộ'}</span>
+            </div>
+
+            {apartment.internalZaloPhone ? (
+              <span className="text-[11px] font-mono font-medium text-blue-100 bg-white/20 px-2 py-0.5 rounded-md backdrop-blur-xs max-w-[130px] truncate">
+                {apartment.internalZaloPhone.includes('zalo.me/g') ? 'Nhóm Zalo' : apartment.internalZaloPhone}
+              </span>
+            ) : (
+              <span className="text-[10px] font-medium text-amber-200 bg-black/25 px-1.5 py-0.5 rounded-md border border-amber-300/30">
+                + Thêm Group / SĐT
+              </span>
+            )}
+          </button>
+
           <div className="flex gap-2">
             {/* Nút Copy Zalo chào khách */}
             <button
@@ -692,6 +815,89 @@ export default function ApartmentCard({
                   <span>Lưu Link</span>
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* POPUP MODAL: NHẬP SỐ ZALO NỘI BỘ NHANH */}
+      {isQuickZaloPhoneModalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs animate-in fade-in duration-200"
+          onClick={() => setIsQuickZaloPhoneModalOpen(false)}
+        >
+          <div
+            className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden flex flex-col p-5 space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-blue-600 flex items-center justify-center text-white shrink-0 shadow-xs">
+                  <svg className="w-4 h-4 fill-white" viewBox="0 0 40 40">
+                    <path d="M11 14h18v3.5l-12 12h12V33H11v-3.5l12-12H11V14z" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-800">
+                    Gửi Zalo group nội bộ ({apartment.unitNumber})
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Nhập link nhóm Zalo hoặc số điện thoại để gửi tin:
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsQuickZaloPhoneModalOpen(false)}
+                className="p-1 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                Link nhóm Zalo hoặc Số điện thoại Zalo
+              </label>
+              <input
+                type="text"
+                placeholder="VD: https://zalo.me/g/xxxxxx hoặc 0908123456"
+                value={quickZaloPhoneInput}
+                onChange={(e) => setQuickZaloPhoneInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleSaveAndSendQuickZalo();
+                  }
+                }}
+                className="w-full px-3 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl font-mono focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-hidden transition-all text-slate-800"
+                autoFocus
+              />
+              <p className="mt-1.5 text-[11px] text-slate-500 leading-relaxed">
+                💡 Hệ thống sẽ lưu thông tin này vào căn hộ, tự động copy sẵn nội dung tin nhắn và mở thẳng nhóm / khung chat Zalo.
+              </p>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setIsQuickZaloPhoneModalOpen(false)}
+                className="px-3.5 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
+              >
+                Hủy
+              </button>
+              <button
+                type="button"
+                disabled={isSavingZaloPhone || !quickZaloPhoneInput.trim()}
+                onClick={handleSaveAndSendQuickZalo}
+                className="inline-flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-blue-600 to-sky-600 hover:from-blue-700 hover:to-sky-700 active:scale-[0.99] text-white text-xs font-semibold rounded-xl shadow-xs transition-all cursor-pointer disabled:opacity-50"
+              >
+                {isSavingZaloPhone ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Send className="w-3.5 h-3.5" />
+                )}
+                <span>Lưu &amp; Mở Zalo</span>
+              </button>
             </div>
           </div>
         </div>

@@ -32,6 +32,7 @@ export interface Apartment {
   doorPasscode: string | null;
   ownerName: string;
   ownerPhone: string;
+  internalZaloPhone?: string | null;
   commissionDeal: string | null;
   internalNotes: string | null;
   leaseEndDate: string | Date | null;

@@ -48,6 +48,7 @@ export async function PUT(
       doorPasscode,
       ownerName,
       ownerPhone,
+      internalZaloPhone,
       commissionDeal,
       internalNotes,
       leaseEndDate,
@@ -84,6 +85,8 @@ export async function PUT(
         doorPasscode: doorPasscode !== undefined ? doorPasscode?.trim() || null : undefined,
         ...(ownerName && { ownerName: ownerName.trim() }),
         ...(ownerPhone && { ownerPhone: ownerPhone.trim() }),
+        internalZaloPhone:
+          internalZaloPhone !== undefined ? internalZaloPhone?.trim() || null : undefined,
         commissionDeal: commissionDeal !== undefined ? commissionDeal?.trim() || null : undefined,
         internalNotes: internalNotes !== undefined ? internalNotes?.trim() || null : undefined,
         leaseEndDate: leaseEndDate ? new Date(leaseEndDate) : null,
